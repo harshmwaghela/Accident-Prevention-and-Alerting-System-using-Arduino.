@@ -1,1 +1,112 @@
+#include <LiquidCrystal.h>
+#include <TinyGPS.h>
+#include <SoftwareSerial.h>
+SoftwareSerial SIM900(0, 9);
+
+TinyGPS gps;  //Creates a new instance of the TinyGPS object
+
+// initialize the library with the numbers of the interface pins
+LiquidCrystal lcd(7, 6, 5, 4, 3, 2);// defines pins numbers ultrasonic sensor.
+
+const int trigPin = A0;
+
+const int echoPin = A1;
+
+// defines pins numbers motors.
+
+const int motor = 8;
+
+// defines variables
+
+long duration;
+
+int distance;
+
+void setup() 
+{
+delay(100);
+lcd.begin(16, 2);
+pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output
+
+pinMode(echoPin, INPUT); // Sets the echoPin as an Input
+lcd.setCursor(1,0);
+lcd.print("Distance=");
+
+pinMode(motor, OUTPUT); // Sets the Motor as an Output
+
+Serial.begin(9600); // Starts the serial communication
+SIM900.begin(9600);  
+}
+
+void loop() {
+// Clears the trigPin
+digitalWrite(trigPin, LOW);
+delayMicroseconds(2);
+
+// Sets the trigPin on HIGH state for 10 micro seconds
+digitalWrite(trigPin, HIGH);
+delayMicroseconds(10000);
+digitalWrite(trigPin, LOW);
+// Reads the echoPin, returns the sound wave travel time in microseconds
+duration = pulseIn(echoPin, HIGH);
+
+// Calculating the distance
+distance= duration*0.034/2;
+lcd.setCursor(11,0);
+lcd.print(distance); //output on lcd in centimeter
+lcd.setCursor(14,0);
+lcd.print("cm");
+
+if(distance < 30)
+{
+   digitalWrite(motor, LOW);
+    }
+  else
+  {
+     digitalWrite(motor, HIGH);
+    }
+
+if (distance < 30)
+  {
+  bool newData = false;
+  unsigned long chars;
+  unsigned short sentences, failed;
+
+  // For one second we parse GPS data and report some key values
+  for (unsigned long start = millis(); millis() - start < 1000;)
+  {
+    while (Serial.available())
+    {
+      char c = Serial.read();
+      //Serial.print(c);
+      if (gps.encode(c)) 
+        newData = true;  
+    }
+  }
+if (newData)      //If newData is true
+  {
+    float flat, flon;
+    unsigned long age;
+    gps.f_get_position(&flat, &flon, &age);   
+    SIM900.print("AT+CMGF=1\r"); 
+    delay(400);
+    SIM900.println("AT + CMGS = \"+91xxxxxxxxxx\"");// recipient's mobile number with country code
+    delay(300);
+    SIM900.print("AN OBJECT DETECTED IN FRONT OF CAR AND ALSO CHECK THE CAR LOCATION ");
+    delay(300);
+    SIM900.print("Latitude = ");
+    SIM900.print(flat == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flat, 6);
+    SIM900.print(" Longitude = ");
+    SIM900.print(flon == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flon, 6);
+    delay(200);
+    SIM900.println((char)26); // End AT command with a ^Z, ASCII code 26
+    delay(200);
+    SIM900.println();
+  }
+  } 
+else
+{
+  Serial.println();
+}
+}
 
